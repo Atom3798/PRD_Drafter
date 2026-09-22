@@ -370,7 +370,7 @@ backend's CORS allowlist names 5173 specifically.
 |---|---|---|
 | 0 | Environment check, `.gitignore` | Done |
 | 1 | Scaffolding, health endpoints, migrations, RLS | Done |
-| 2 | Shared type contract (`types.ts` and `prd.py`) | Not started |
+| 2 | Shared type contract (`types.ts` and `prd.py`) | Done - **frozen** |
 | 3 | Auth, `AuthGuard`, JWT verification, settings | Not started |
 | 4 | PRD CRUD and dashboard | Not started |
 | 5 | Seven-step wizard with autosave | Not started |

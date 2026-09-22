@@ -1,12 +1,26 @@
 import { env } from '@/lib/env'
 import { getAccessToken } from '@/lib/supabase'
+import type {
+  CreatePrdRequest,
+  GenerationResultResponse,
+  GenerationStatusResponse,
+  Prd,
+  PrdListResponse,
+  PrdStatus,
+  RegenerateSectionRequest,
+  RegenerateSectionResponse,
+  SectionKey,
+  UpdatePrdRequest,
+  VersionListResponse,
+} from '@/lib/types'
 
 /**
  * The one way the app talks to FastAPI.
  *
  * Responsibilities: attach the current JWT, unwrap the backend's error
  * envelope into a typed ApiError, and keep every caller from hand-rolling
- * fetch. Typed per-endpoint helpers are layered on top of this in Phase 2.
+ * fetch. The typed per-endpoint helpers at the bottom are the surface the
+ * rest of the app should use; `request` itself is the escape hatch.
  */
 
 /** Matches `core/errors.py`'s envelope exactly. */
@@ -185,4 +199,86 @@ export interface DbHealthResponse {
 export const health = {
   api: () => api.get<HealthResponse>('/api/health', { auth: false, timeoutMs: 5_000 }),
   db: () => api.get<DbHealthResponse>('/api/health/db', { auth: false, timeoutMs: 10_000 }),
+}
+
+// ---- PRDs -----------------------------------------------------------------
+
+export interface ListPrdsParams {
+  search?: string
+  status?: PrdStatus
+  limit?: number
+  offset?: number
+}
+
+function queryString(params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') search.set(key, String(value))
+  }
+  const encoded = search.toString()
+  return encoded ? `?${encoded}` : ''
+}
+
+export const prds = {
+  list: (params: ListPrdsParams = {}, signal?: AbortSignal) =>
+    api.get<PrdListResponse>(`/api/prds${queryString({ ...params })}`, { signal }),
+
+  get: (id: string, signal?: AbortSignal) => api.get<Prd>(`/api/prds/${id}`, { signal }),
+
+  create: (body: CreatePrdRequest = {}) => api.post<Prd>('/api/prds', body),
+
+  /** Autosave. The backend merges, so a partial body is safe. */
+  update: (id: string, body: UpdatePrdRequest, signal?: AbortSignal) =>
+    api.patch<Prd>(`/api/prds/${id}`, body, { signal }),
+
+  remove: (id: string) => api.delete(`/api/prds/${id}`),
+
+  duplicate: (id: string) => api.post<Prd>(`/api/prds/${id}/duplicate`),
+}
+
+// ---- Generation -----------------------------------------------------------
+
+/** Generation runs 30-90s, well past the default request timeout. */
+const GENERATION_TIMEOUT_MS = 180_000
+
+export const generation = {
+  start: (id: string, signal?: AbortSignal) =>
+    api.post<GenerationResultResponse>(`/api/prds/${id}/generate`, undefined, {
+      signal,
+      timeoutMs: GENERATION_TIMEOUT_MS,
+    }),
+
+  /** For a client that reconnects while generation is still running. */
+  status: (id: string, signal?: AbortSignal) =>
+    api.get<GenerationStatusResponse>(`/api/prds/${id}/generation-status`, { signal }),
+
+  regenerateSection: (
+    id: string,
+    sectionKey: SectionKey,
+    body: RegenerateSectionRequest = {},
+    signal?: AbortSignal,
+  ) =>
+    api.post<RegenerateSectionResponse>(
+      `/api/prds/${id}/sections/${sectionKey}/regenerate`,
+      body,
+      { signal, timeoutMs: GENERATION_TIMEOUT_MS },
+    ),
+}
+
+// ---- Versions -------------------------------------------------------------
+
+export const versions = {
+  list: (id: string, signal?: AbortSignal) =>
+    api.get<VersionListResponse>(`/api/prds/${id}/versions`, { signal }),
+
+  /** Restoring appends a new version; history is never destroyed. */
+  restore: (id: string, versionId: string) =>
+    api.post<Prd>(`/api/prds/${id}/versions/${versionId}/restore`),
+}
+
+// ---- Export ---------------------------------------------------------------
+
+export const exportPrd = {
+  markdown: (id: string, signal?: AbortSignal) =>
+    api.get<string>(`/api/prds/${id}/export?format=markdown`, { signal }),
 }
