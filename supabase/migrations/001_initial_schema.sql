@@ -36,7 +36,10 @@ end $$;
 
 create table if not exists public.prds (
   id                    uuid primary key default uuid_generate_v4(),
-  user_id               uuid not null references auth.users(id) on delete cascade,
+  -- Defaults to the caller so application code cannot forget to set an
+  -- owner. The RLS insert policy still checks it with `auth.uid() = user_id`,
+  -- so an explicitly supplied value is validated rather than trusted.
+  user_id               uuid not null default auth.uid() references auth.users(id) on delete cascade,
   title                 text not null default 'Untitled PRD',
   status                prd_status not null default 'draft',
   inputs                jsonb not null default '{}'::jsonb,

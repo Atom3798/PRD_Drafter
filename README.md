@@ -139,7 +139,7 @@ Then run `supabase/verify_setup.sql` in the SQL editor anyway.
 
 1. **RLS enabled** — all three tables must say `true` / `OK`. The anon key is
    public, so a table without RLS is a table anyone on the internet can read.
-2. **Policies** — expect 10 rows (2 `profiles`, 4 `prds`, 2 `prd_versions`).
+2. **Policies** — expect 8 rows (2 `profiles`, 4 `prds`, 2 `prd_versions`).
 3. **Triggers** — `on_auth_user_created` must exist, or new signups get no
    profile row.
 
@@ -152,7 +152,7 @@ All of these come from the Supabase dashboard:
 | Project URL | Project Settings → Data API → Project URL |
 | Anon key | Project Settings → API Keys → `anon` / `public` |
 | Service role key | Project Settings → API Keys → `service_role` |
-| JWT secret | Project Settings → JWT Keys → JWT Secret |
+| JWT secret | Project Settings → JWT Keys (only for legacy HS256 projects) |
 
 The service role key is **not used by this MVP**. The variable exists so it is
 documented; leaving it blank is fine.
@@ -220,7 +220,7 @@ make dev        # macOS / Linux
 |---|---|---|
 | `SUPABASE_URL` | yes | Project Settings → Data API |
 | `SUPABASE_ANON_KEY` | yes | Project Settings → API Keys |
-| `SUPABASE_JWT_SECRET` | yes | Project Settings → JWT Keys. Verifies incoming tokens |
+| `SUPABASE_JWT_SECRET` | no | Legacy HS256 projects only. Modern projects sign with ES256 and the backend fetches the public key automatically |
 | `SUPABASE_SERVICE_ROLE_KEY` | no | Unused in this MVP. Never log it, never send it to the browser |
 | `AI_PROVIDER` | yes | `claude`, `openai`, or `gemini` |
 | `ANTHROPIC_API_KEY` | if `claude` | [console.anthropic.com](https://console.anthropic.com) |
@@ -371,9 +371,20 @@ The backend only allows origins listed in `CORS_ORIGINS`. Check that:
 - You restarted the backend after editing `.env`.
 
 **401 on every API call, or "Your session is invalid or has expired"**
-Almost always a wrong `SUPABASE_JWT_SECRET`. It lives under **JWT Keys**, not
-**API Keys** — different values, easy to mix up. Also confirm the backend and
-frontend point at the *same* Supabase project.
+Almost always the backend and frontend pointing at *different* Supabase
+projects — check that `SUPABASE_URL` and `VITE_SUPABASE_URL` match exactly.
+
+The backend verifies tokens two ways and picks based on the token's own `alg`
+header:
+
+- **ES256/RS256** (current Supabase) — fetches the public key from
+  `/auth/v1/.well-known/jwks.json`. No secret needed. If `SUPABASE_URL` is
+  wrong or unreachable, every token fails here.
+- **HS256** (older projects) — verified against `SUPABASE_JWT_SECRET`. If your
+  project is this vintage and the variable is blank, every token fails.
+
+Setting `LOG_LEVEL=DEBUG` logs the reason a token was rejected; the client is
+told only that the session is invalid, deliberately.
 
 **Queries return nothing even though rows exist**
 That is RLS doing its job. Either the request carried no JWT, or the rows
@@ -404,7 +415,7 @@ backend's CORS allowlist names 5173 specifically.
 | 0 | Environment check, `.gitignore` | Done |
 | 1 | Scaffolding, health endpoints, migrations, RLS | Done |
 | 2 | Shared type contract (`types.ts` and `prd.py`) | Done - **frozen** |
-| 3 | Auth, `AuthGuard`, JWT verification, settings | Done (RLS test pending a database) |
+| 3 | Auth, `AuthGuard`, JWT verification, settings | Done - RLS verified against live Postgres |
 | 4 | PRD CRUD and dashboard | Not started |
 | 5 | Seven-step wizard with autosave | Not started |
 | 6 | AI layer, four-group parallel generation | Not started |

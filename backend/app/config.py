@@ -7,12 +7,13 @@ startup with a readable message rather than failing on the first request.
 
 from __future__ import annotations
 
+import json
 import sys
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, ValidationError, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 AIProviderName = Literal["claude", "openai", "gemini"]
 
@@ -35,7 +36,10 @@ class Settings(BaseSettings):
     # ---- Supabase (all required) ----
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
-    SUPABASE_JWT_SECRET: str
+    # Only needed for older projects that sign with a shared HS256 secret.
+    # Current Supabase signs asymmetrically and publishes a key set instead,
+    # so this is optional.
+    SUPABASE_JWT_SECRET: str | None = None
     # Present for completeness; deliberately unused in this MVP. Every query
     # runs through the caller's JWT so RLS stays in force.
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
@@ -50,7 +54,12 @@ class Settings(BaseSettings):
     AI_MAX_RETRIES: int = 1
 
     # ---- App ----
-    CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    # NoDecode is load-bearing: without it pydantic-settings tries to JSON
+    # -decode any list field read from .env, so a plain comma-separated value
+    # raises before _split_origins ever runs.
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:5173"]
+    )
     RATE_LIMIT_GENERATE_PER_HOUR: int = 10
     RATE_LIMIT_REGENERATE_PER_HOUR: int = 40
     LOG_LEVEL: str = "INFO"
@@ -64,13 +73,26 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:
-        """Accept ``a,b,c`` from the environment as well as a JSON list."""
-        if isinstance(v, str):
-            stripped = v.strip()
-            if stripped.startswith("["):
-                return v  # let pydantic parse it as JSON
-            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
-        return v
+        """Accept ``a,b,c`` as well as a JSON list.
+
+        NoDecode means nothing else will parse this, so JSON is handled here
+        rather than deferred to pydantic.
+        """
+        if not isinstance(v, str):
+            return v
+
+        stripped = v.strip()
+        if stripped.startswith("["):
+            try:
+                return json.loads(stripped)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "CORS_ORIGINS looks like JSON but could not be parsed. "
+                    "Use a comma-separated list instead, e.g. "
+                    "CORS_ORIGINS=http://localhost:5173"
+                ) from exc
+
+        return [origin.strip() for origin in stripped.split(",") if origin.strip()]
 
     @field_validator("SUPABASE_URL")
     @classmethod

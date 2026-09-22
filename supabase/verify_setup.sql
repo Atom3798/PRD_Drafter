@@ -15,7 +15,7 @@ where n.nspname = 'public'
   and c.relname in ('profiles', 'prds', 'prd_versions')
 order by c.relname;
 
--- 2. Expect 10 policies: 2 profiles, 4 prds, 2 prd_versions.
+-- 2. Expect 8 policies: 2 profiles, 4 prds, 2 prd_versions.
 select schemaname, tablename, policyname, cmd
 from pg_policies
 where schemaname = 'public'
