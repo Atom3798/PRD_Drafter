@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, set_correlation_id
-from app.routers import health
+from app.routers import health, profile
 
 configure_logging(settings.LOG_LEVEL)
 logger = logging.getLogger("prd.main")
@@ -76,6 +76,7 @@ async def correlation_id_middleware(
 register_exception_handlers(app)
 
 app.include_router(health.router)
+app.include_router(profile.router)
 
 
 @app.get("/", include_in_schema=False)

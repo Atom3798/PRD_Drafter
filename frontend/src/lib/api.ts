@@ -1,5 +1,5 @@
 import { env } from '@/lib/env'
-import { getAccessToken } from '@/lib/supabase'
+import { getAccessToken, supabase } from '@/lib/supabase'
 import type {
   CreatePrdRequest,
   GenerationResultResponse,
@@ -161,7 +161,14 @@ export async function request<T>(
     )
   }
 
-  if (!response.ok) throw await toApiError(response)
+  if (!response.ok) {
+    const error = await toApiError(response)
+    // A 401 from our API means the token is no longer good, whatever the
+    // client thinks. Clearing the session lets AuthProvider notice and
+    // AuthGuard redirect, rather than leaving the user on a dead page.
+    if (error.status === 401) void supabase.auth.signOut()
+    throw error
+  }
   if (response.status === 204) return undefined as T
 
   const contentType = response.headers.get('Content-Type') ?? ''
@@ -281,4 +288,28 @@ export const versions = {
 export const exportPrd = {
   markdown: (id: string, signal?: AbortSignal) =>
     api.get<string>(`/api/prds/${id}/export?format=markdown`, { signal }),
+}
+
+// ---- Profile --------------------------------------------------------------
+
+export interface Profile {
+  id: string
+  email: string
+  full_name: string | null
+  created_at: string
+}
+
+export interface DeleteAccountDataResponse {
+  deleted_prd_count: number
+  /** Always false: removing the auth record needs an admin key we do not use. */
+  auth_account_removed: boolean
+}
+
+export const profile = {
+  get: (signal?: AbortSignal) => api.get<Profile>('/api/profile', { signal }),
+
+  update: (body: { full_name: string }) => api.patch<Profile>('/api/profile', body),
+
+  /** Irreversible. Deletes every PRD; leaves the auth account in place. */
+  deleteAllData: () => api.delete<DeleteAccountDataResponse>('/api/profile/data'),
 }

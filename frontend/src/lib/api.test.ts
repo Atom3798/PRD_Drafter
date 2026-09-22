@@ -4,10 +4,12 @@ import { ApiError, health, NotAuthenticatedError, request } from '@/lib/api'
 
 vi.mock('@/lib/supabase', () => ({
   getAccessToken: vi.fn(),
+  supabase: { auth: { signOut: vi.fn() } },
 }))
 
-const { getAccessToken } = await import('@/lib/supabase')
+const { getAccessToken, supabase } = await import('@/lib/supabase')
 const mockGetAccessToken = vi.mocked(getAccessToken)
+const mockSignOut = vi.mocked(supabase.auth.signOut)
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -132,6 +134,33 @@ describe('api request wrapper', () => {
 
     expect(error.code).toBe('UNEXPECTED_RESPONSE')
     expect(error.message).not.toContain('<html>')
+  })
+
+  it('clears the session when the API returns 401', async () => {
+    // Otherwise the user sits on a dead page whose every request fails.
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        { error: { code: 'UNAUTHENTICATED', message: 'Expired.', details: {} } },
+        401,
+      ),
+    )
+
+    await request('/api/prds').catch(() => undefined)
+
+    expect(mockSignOut).toHaveBeenCalledOnce()
+  })
+
+  it('does not clear the session for non-auth failures', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        { error: { code: 'PRD_NOT_FOUND', message: 'Missing.', details: {} } },
+        404,
+      ),
+    )
+
+    await request('/api/prds/abc').catch(() => undefined)
+
+    expect(mockSignOut).not.toHaveBeenCalled()
   })
 
   it('returns undefined for a 204', async () => {

@@ -98,14 +98,32 @@ but losing it is annoying later).
 
 ### 2. Run the migrations
 
-**Option A — SQL editor (no extra tooling).** In the dashboard, open
+You need a Postgres with the schema applied. Pick one of three paths.
+
+**Option A — fully local Supabase (no cloud account).** Needs Docker Desktop
+running. This gives you real Postgres, real Auth and real RLS on your own
+machine — the closest thing to production without signing up for anything:
+
+```bash
+npm install -g supabase
+supabase init      # first time only
+supabase start     # pulls images on first run, then prints your local keys
+supabase db reset  # applies everything in supabase/migrations
+```
+
+`supabase start` prints an **API URL**, an **anon key** and a **JWT secret** —
+those are the values for your `.env` files. Supabase Studio runs at
+<http://localhost:54323>. Email confirmation is off by default locally, so
+signup works immediately. Stop it with `supabase stop`.
+
+**Option B — cloud SQL editor (no extra tooling).** In the dashboard, open
 **SQL Editor → New query**. Paste and run these three files **in order**:
 
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_rls_policies.sql`
 3. `supabase/verify_setup.sql`  ← not a migration; a check
 
-**Option B — Supabase CLI.**
+**Option C — cloud project via the CLI.**
 
 ```bash
 npm install -g supabase
@@ -266,6 +284,21 @@ make check
 
 Generation tests use a `StubProvider`. No test ever calls a real AI API.
 
+### The RLS test
+
+`tests/test_rls.py` proves user A cannot read, update or delete user B's data.
+It is the one test that cannot be faked — RLS is enforced by Postgres, so it
+needs a real database. It is marked `integration` and **skips** when
+`backend/.env` has no real credentials:
+
+```bash
+cd backend && .venv/bin/python -m pytest -m integration
+```
+
+Get a database first (see [Run the migrations](#2-run-the-migrations)); the
+local `supabase start` option works fine for this. If these tests are skipping,
+the ownership boundary is unverified — treat that as a gap, not a pass.
+
 ---
 
 ## Repository layout
@@ -371,7 +404,7 @@ backend's CORS allowlist names 5173 specifically.
 | 0 | Environment check, `.gitignore` | Done |
 | 1 | Scaffolding, health endpoints, migrations, RLS | Done |
 | 2 | Shared type contract (`types.ts` and `prd.py`) | Done - **frozen** |
-| 3 | Auth, `AuthGuard`, JWT verification, settings | Not started |
+| 3 | Auth, `AuthGuard`, JWT verification, settings | Done (RLS test pending a database) |
 | 4 | PRD CRUD and dashboard | Not started |
 | 5 | Seven-step wizard with autosave | Not started |
 | 6 | AI layer, four-group parallel generation | Not started |

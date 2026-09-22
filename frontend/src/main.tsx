@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
 import App from '@/App'
+import { AuthProvider } from '@/components/layout/AuthProvider'
 import { Toaster } from '@/components/ui/sonner'
 import '@/index.css'
 
@@ -24,8 +25,10 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <App />
-        <Toaster position="bottom-right" />
+        <AuthProvider>
+          <App />
+          <Toaster position="bottom-right" />
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

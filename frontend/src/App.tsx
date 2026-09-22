@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import { AuthGuard, GuestOnly } from '@/components/layout/AuthGuard'
 import Dashboard from '@/pages/Dashboard'
 import Editor from '@/pages/Editor'
 import Landing from '@/pages/Landing'
@@ -12,21 +13,28 @@ import Wizard from '@/pages/Wizard'
 /**
  * Route table.
  *
- * AuthGuard lands in Phase 3; until then the protected routes are reachable
- * directly, which is fine locally and is the next thing to change.
+ * Protected routes sit behind <AuthGuard>, which preserves the intended
+ * destination so signing in returns you where you were headed. Login and
+ * signup sit behind <GuestOnly> so an already-signed-in user does not land
+ * on a form they do not need.
  */
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
 
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/prds/new" element={<Wizard />} />
-      <Route path="/prds/:id/edit" element={<Wizard />} />
-      <Route path="/prds/:id" element={<Editor />} />
-      <Route path="/settings" element={<Settings />} />
+      <Route element={<GuestOnly />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Route>
+
+      <Route element={<AuthGuard />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/prds/new" element={<Wizard />} />
+        <Route path="/prds/:id/edit" element={<Wizard />} />
+        <Route path="/prds/:id" element={<Editor />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
 
       <Route path="/index.html" element={<Navigate to="/" replace />} />
       <Route path="*" element={<NotFound />} />

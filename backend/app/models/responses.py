@@ -7,6 +7,7 @@ envelope in `core/errors.py`.
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -68,6 +69,22 @@ class RegenerateSectionResponse(BaseModel):
 
 class VersionListResponse(BaseModel):
     items: list[PrdVersionSummary] = Field(default_factory=list)
+
+
+class ProfileResponse(BaseModel):
+    """The caller's own profile. Never another user's."""
+
+    id: UUID
+    email: str
+    full_name: str | None = None
+    created_at: datetime
+
+
+class DeleteAccountDataResponse(BaseModel):
+    deleted_prd_count: int
+    #: Always False in this MVP. Removing the auth record needs Supabase's
+    #: admin API and the service role key, which we deliberately do not use.
+    auth_account_removed: bool = False
 
 
 class HealthResponse(BaseModel):
