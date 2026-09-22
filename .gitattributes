@@ -1,0 +1,16 @@
+# Normalize line endings so a five-person team on mixed operating systems
+# does not generate whitespace-only diffs.
+* text=auto eol=lf
+
+# Shell scripts must keep LF or they will not execute on macOS/Linux.
+*.sh text eol=lf
+# PowerShell is happier with CRLF on Windows.
+*.ps1 text eol=crlf
+
+# Generated - collapse in diffs and exclude from language stats.
+package-lock.json linguist-generated=true -diff
+frontend/src/components/ui/** linguist-vendored=true
+
+*.png binary
+*.jpg binary
+*.svg text

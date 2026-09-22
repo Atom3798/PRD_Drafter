@@ -1,0 +1,206 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Palette rules this file enforces:
+   - Neutrals carry the interface. They have a faint cool cast (hue ~255, very
+     low chroma) so large surfaces read as paper rather than as flat #fff.
+   - ONE accent, a deep teal, used for primary actions only. Not for headings,
+     not for decoration, not for links inside body copy.
+   - Amber (`--clarify`) is reserved exclusively for "needs clarification".
+     It appears nowhere else in the product. That is what makes it mean
+     something when it does appear.
+   - No gradients. No glassmorphism. Elevation comes from borders first and
+     shadow second, and shadows differ by intent rather than being one soft
+     blur applied to every card.
+--------------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.994 0.002 255);
+  --foreground: oklch(0.213 0.012 258);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.213 0.012 258);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.213 0.012 258);
+
+  /* Deep teal. Primary actions only. */
+  --primary: oklch(0.505 0.082 196);
+  --primary-foreground: oklch(0.992 0.004 196);
+  --primary-hover: oklch(0.452 0.081 196);
+
+  --secondary: oklch(0.967 0.004 255);
+  --secondary-foreground: oklch(0.283 0.013 258);
+
+  --muted: oklch(0.967 0.004 255);
+  --muted-foreground: oklch(0.505 0.014 258);
+
+  /* shadcn's "accent" is a subtle hover surface, NOT the brand accent. */
+  --accent: oklch(0.955 0.006 255);
+  --accent-foreground: oklch(0.283 0.013 258);
+
+  --destructive: oklch(0.545 0.175 26);
+  --destructive-foreground: oklch(0.99 0.004 26);
+
+  --border: oklch(0.915 0.005 258);
+  --input: oklch(0.897 0.006 258);
+  --ring: oklch(0.505 0.082 196);
+
+  /* Reserved: unresolved assumptions / needs_clarification. Nothing else. */
+  --clarify: oklch(0.706 0.132 68);
+  --clarify-foreground: oklch(0.285 0.055 60);
+  --clarify-surface: oklch(0.973 0.028 82);
+  --clarify-border: oklch(0.878 0.072 76);
+
+  /* Status, used by StatusBadge only. */
+  --status-draft: oklch(0.545 0.014 258);
+  --status-generating: oklch(0.545 0.095 232);
+  --status-generated: oklch(0.512 0.093 158);
+  --status-failed: oklch(0.545 0.175 26);
+}
+
+.dark {
+  --background: oklch(0.178 0.009 258);
+  --foreground: oklch(0.936 0.005 255);
+
+  --card: oklch(0.214 0.010 258);
+  --card-foreground: oklch(0.936 0.005 255);
+
+  --popover: oklch(0.232 0.011 258);
+  --popover-foreground: oklch(0.936 0.005 255);
+
+  --primary: oklch(0.716 0.094 193);
+  --primary-foreground: oklch(0.186 0.028 196);
+  --primary-hover: oklch(0.772 0.092 193);
+
+  --secondary: oklch(0.262 0.011 258);
+  --secondary-foreground: oklch(0.936 0.005 255);
+
+  --muted: oklch(0.256 0.011 258);
+  --muted-foreground: oklch(0.678 0.013 258);
+
+  --accent: oklch(0.283 0.012 258);
+  --accent-foreground: oklch(0.936 0.005 255);
+
+  --destructive: oklch(0.628 0.168 25);
+  --destructive-foreground: oklch(0.982 0.008 25);
+
+  --border: oklch(0.296 0.012 258);
+  --input: oklch(0.334 0.013 258);
+  --ring: oklch(0.716 0.094 193);
+
+  --clarify: oklch(0.782 0.125 72);
+  --clarify-foreground: oklch(0.932 0.048 82);
+  --clarify-surface: oklch(0.272 0.042 70);
+  --clarify-border: oklch(0.412 0.072 72);
+
+  --status-draft: oklch(0.652 0.012 258);
+  --status-generating: oklch(0.706 0.092 232);
+  --status-generated: oklch(0.712 0.098 158);
+  --status-failed: oklch(0.678 0.152 25);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-clarify: var(--clarify);
+  --color-clarify-foreground: var(--clarify-foreground);
+  --color-clarify-surface: var(--clarify-surface);
+  --color-clarify-border: var(--clarify-border);
+
+  --color-status-draft: var(--status-draft);
+  --color-status-generating: var(--status-generating);
+  --color-status-generated: var(--status-generated);
+  --color-status-failed: var(--status-failed);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+    monospace;
+
+  /* The editor's measure. Long-form content is read, not scanned. */
+  --container-reading: 70ch;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every interactive element gets a visible ring. Non-negotiable:
+     keyboard users must always be able to see where they are. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Respect a user's reduced-motion setting rather than animating anyway. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Long-form PRD prose: generous leading, capped measure. */
+  .prose-reading {
+    max-width: var(--container-reading);
+    line-height: 1.75;
+  }
+
+  .prose-reading p + p {
+    margin-top: 1em;
+  }
+}

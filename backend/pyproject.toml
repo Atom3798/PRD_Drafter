@@ -1,0 +1,38 @@
+# Tooling config only. Dependencies live in requirements.txt so the setup
+# instructions stay a plain `pip install -r requirements.txt`.
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = [".venv", "__pycache__"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # bugbear
+  "SIM", # simplify
+  "C4",  # comprehensions
+  "ASYNC",
+]
+ignore = [
+  "E501", # line length is the formatter's job
+  "B008", # FastAPI's Depends() in defaults is the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+addopts = "-q --strict-markers"
+markers = [
+  "integration: needs a live Supabase project (skipped without credentials)",
+]
