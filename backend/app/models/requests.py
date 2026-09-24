@@ -7,6 +7,8 @@ verified JWT and nowhere else.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.prd import MAX_FIELD_CHARS, PrdContent, PrdInputs
@@ -30,9 +32,35 @@ class UpdatePrdRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str | None = Field(default=None, max_length=MAX_TITLE_CHARS)
-    inputs: PrdInputs | None = None
-    content: PrdContent | None = None
+    # Partial on purpose. Typing these as the full PrdInputs / PrdContent would
+    # fill every unsent field with its default, so a PATCH carrying one answer
+    # would blank the other eighteen - autosave would quietly destroy work.
+    # The service merges these into the stored JSONB; unknown keys are dropped.
+    inputs: dict[str, Any] | None = None
+    content: dict[str, Any] | None = None
     wizard_step: int | None = Field(default=None, ge=1, le=7)
+
+    @field_validator("inputs")
+    @classmethod
+    def _clean_inputs(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Keep only real input fields, trimmed and length-capped."""
+        if value is None:
+            return None
+        allowed = set(PrdInputs.model_fields)
+        return {
+            key: raw.strip()[:MAX_FIELD_CHARS] if isinstance(raw, str) else raw
+            for key, raw in value.items()
+            if key in allowed
+        }
+
+    @field_validator("content")
+    @classmethod
+    def _clean_content(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Keep only real section keys, so the editor cannot invent sections."""
+        if value is None:
+            return None
+        allowed = set(PrdContent.model_fields)
+        return {key: raw for key, raw in value.items() if key in allowed}
 
     @field_validator("title")
     @classmethod

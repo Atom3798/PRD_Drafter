@@ -416,7 +416,7 @@ backend's CORS allowlist names 5173 specifically.
 | 1 | Scaffolding, health endpoints, migrations, RLS | Done |
 | 2 | Shared type contract (`types.ts` and `prd.py`) | Done - **frozen** |
 | 3 | Auth, `AuthGuard`, JWT verification, settings | Done - RLS verified against live Postgres |
-| 4 | PRD CRUD and dashboard | Not started |
+| 4 | PRD CRUD and dashboard | Done |
 | 5 | Seven-step wizard with autosave | Not started |
 | 6 | AI layer, four-group parallel generation | Not started |
 | 7 | Section editor, regeneration, version history | Not started |
