@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from app.models.prd import (
+    FORMAT_SECTIONS,
     MAX_FIELD_CHARS,
     MAX_TOTAL_INPUT_CHARS,
     SECTION_GROUPS,
@@ -221,3 +222,57 @@ def test_wizard_step_count_matches_the_update_validator(ts_source: str) -> None:
     ]
     assert upper_bounds, "wizard_step should carry an upper bound"
     assert _numeric_const(ts_source, "WIZARD_STEP_COUNT") == upper_bounds[0]
+
+
+# ---------------------------------------------------------------------------
+# Document format presets
+# ---------------------------------------------------------------------------
+
+
+def test_format_presets_match(ts_source: str) -> None:
+    """Formats decide which sections get generated, so drift here means the
+    wizard promises a shape the backend will not produce."""
+    match = re.search(
+        r"export const FORMAT_SECTIONS[^=]*=\s*\{(.*?)^\}\s*as const",
+        ts_source,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    assert match, "FORMAT_SECTIONS not found in types.ts"
+
+    body = match.group(1)
+    ts_formats: dict[str, list[str]] = {}
+    for name, block in re.findall(r"(\w+):\s*\[(.*?)\]", body, flags=re.DOTALL):
+        ts_formats[name] = re.findall(r"'([^']+)'", block)
+    # `comprehensive: SECTION_ORDER` has no bracket literal of its own.
+    if "comprehensive" not in ts_formats and "comprehensive: SECTION_ORDER" in body:
+        ts_formats["comprehensive"] = list(SECTION_ORDER)
+
+    assert set(ts_formats) == set(FORMAT_SECTIONS)
+    for name, keys in FORMAT_SECTIONS.items():
+        assert sorted(ts_formats[name]) == sorted(keys), f"format '{name}' differs"
+
+
+def test_every_format_only_names_real_sections() -> None:
+    for name, keys in FORMAT_SECTIONS.items():
+        unknown = set(keys) - set(SECTION_ORDER)
+        assert not unknown, f"format '{name}' names unknown sections: {unknown}"
+
+
+def test_every_format_produces_something() -> None:
+    """An empty preset would generate a blank document."""
+    for name, keys in FORMAT_SECTIONS.items():
+        assert keys, f"format '{name}' would generate nothing"
+
+
+def test_option_fields_have_matching_literals(ts_source: str) -> None:
+    """The dropdown values and the Python literals must agree exactly."""
+    from typing import get_args
+
+    from app.models.prd import DetailLevel, DocumentAudience, DocumentFormat
+
+    for ts_name, py_type in (
+        ("DocumentFormat", DocumentFormat),
+        ("DetailLevel", DetailLevel),
+        ("DocumentAudience", DocumentAudience),
+    ):
+        assert _union_members(ts_source, ts_name) == set(get_args(py_type)), ts_name

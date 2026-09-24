@@ -180,6 +180,113 @@ _assert_registry_is_consistent()
 
 
 # ---------------------------------------------------------------------------
+# Document shape options
+# ---------------------------------------------------------------------------
+#
+# Real PRDs come in genuinely different shapes, not just different lengths:
+# Amazon's Working Backwards PR/FAQ, the lean one-pager popularised by Lenny
+# Rachitsky, and the engineering-facing technical spec are structurally
+# different documents.
+#
+# So format is not cosmetic here - it selects WHICH sections get written. A
+# "lean one-pager" that emitted all 21 sections would not be a one-pager, and
+# generating sections the user then has to delete is worse than not
+# generating them.
+
+DocumentFormat = Literal[
+    "comprehensive",
+    "lean_onepager",
+    "working_backwards",
+    "technical_spec",
+]
+
+DetailLevel = Literal["concise", "standard", "detailed"]
+
+DocumentAudience = Literal["mixed", "engineering", "leadership"]
+
+#: Sections each format produces. Every entry must be a subset of
+#: SECTION_ORDER; the consistency check below enforces that.
+FORMAT_SECTIONS: dict[DocumentFormat, tuple[SectionKey, ...]] = {
+    # Everything. The default.
+    "comprehensive": SECTION_ORDER,
+    # Lenny Rachitsky's 1-pager: problem first, ruthless prioritisation,
+    # solution kept deliberately thin.
+    "lean_onepager": (
+        "executive_summary",
+        "problem_statement",
+        "goals",
+        "non_goals",
+        "personas",
+        "user_stories",
+        "mvp_scope",
+        "success_metrics",
+    ),
+    # Amazon PR/FAQ: customer value stated before any requirement exists.
+    # Leads with the value proposition and the questions a customer asks.
+    "working_backwards": (
+        "executive_summary",
+        "value_proposition",
+        "problem_statement",
+        "personas",
+        "pain_points",
+        "user_stories",
+        "success_metrics",
+        "risks",
+        "assumptions",
+    ),
+    # Engineering-facing: requirements and constraints carry the weight.
+    "technical_spec": (
+        "executive_summary",
+        "problem_statement",
+        "functional_requirements",
+        "non_functional_requirements",
+        "user_flow",
+        "mvp_scope",
+        "constraints",
+        "dependencies",
+        "risks",
+        "assumptions",
+    ),
+}
+
+#: Human-readable copy for the wizard. Kept next to the presets so a new
+#: format cannot be added without describing it.
+FORMAT_LABELS: dict[DocumentFormat, str] = {
+    "comprehensive": "Comprehensive PRD",
+    "lean_onepager": "Lean one-pager",
+    "working_backwards": "Working backwards (PR/FAQ)",
+    "technical_spec": "Technical specification",
+}
+
+
+def sections_for_format(document_format: str) -> tuple[SectionKey, ...]:
+    """Sections to generate, in document order. Unknown formats fall back."""
+    preset = FORMAT_SECTIONS.get(document_format)  # type: ignore[arg-type]
+    if preset is None:
+        return SECTION_ORDER
+    # Re-sort into document order so callers never depend on preset ordering.
+    return tuple(key for key in SECTION_ORDER if key in set(preset))
+
+
+def _assert_formats_are_consistent() -> None:
+    known = set(SECTION_ORDER)
+    for name, keys in FORMAT_SECTIONS.items():
+        unknown = set(keys) - known
+        if unknown:
+            raise RuntimeError(
+                f"Format '{name}' names sections that do not exist: {sorted(unknown)}"
+            )
+        if not keys:
+            raise RuntimeError(f"Format '{name}' would generate nothing.")
+    missing_labels = set(FORMAT_SECTIONS) - set(FORMAT_LABELS)
+    if missing_labels:
+        raise RuntimeError(f"Formats missing a label: {sorted(missing_labels)}")
+
+
+_assert_formats_are_consistent()
+
+
+# ---------------------------------------------------------------------------
 # Structured content items
 # ---------------------------------------------------------------------------
 
@@ -367,6 +474,14 @@ class PrdInputs(BaseModel):
     competitors: str = ""
     other_context: str = ""
 
+    # Step 7 - Document options. Chosen on the review step, right before
+    # generating, because that is when "how should this read?" is the
+    # question in front of you. These are never blank, so they do not count
+    # toward sparse fields.
+    document_format: DocumentFormat = "comprehensive"
+    detail_level: DetailLevel = "standard"
+    document_audience: DocumentAudience = "mixed"
+
     @field_validator("*", mode="before")
     @classmethod
     def _normalise(cls, value: object) -> object:
@@ -390,6 +505,11 @@ class PrdInputs(BaseModel):
     def is_ready_to_generate(self) -> bool:
         return not self.missing_required_fields()
 
+    @property
+    def target_sections(self) -> tuple[SectionKey, ...]:
+        """Sections the chosen format asks for."""
+        return sections_for_format(self.document_format)
+
     def total_chars(self) -> int:
         return sum(
             len(value) for value in self.model_dump().values() if isinstance(value, str)
@@ -402,11 +522,20 @@ class PrdInputs(BaseModel):
         back thin, e.g. 'you haven't described success metrics, so that
         section will be marked as needing clarification'.
         """
-        required = {"product_name", "idea", "problem", "target_users"}
+        excluded = {
+            "product_name",
+            "idea",
+            "problem",
+            "target_users",
+            # Option fields always have a value; they are not "unanswered".
+            "document_format",
+            "detail_level",
+            "document_audience",
+        }
         return [
             name
             for name, value in self.model_dump().items()
-            if name not in required and isinstance(value, str) and not value.strip()
+            if name not in excluded and isinstance(value, str) and not value.strip()
         ]
 
 

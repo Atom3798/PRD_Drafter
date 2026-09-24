@@ -119,6 +119,70 @@ export const SECTION_TO_GROUP: Record<SectionKey, GroupName> = Object.fromEntrie
 ) as Record<SectionKey, GroupName>
 
 // ---------------------------------------------------------------------------
+// Document shape options
+// ---------------------------------------------------------------------------
+
+/**
+ * Real PRDs come in genuinely different shapes, not just different lengths.
+ * Format therefore selects WHICH sections get written — a "lean one-pager"
+ * that emitted all 21 sections would not be a one-pager.
+ *
+ * Mirrors `FORMAT_SECTIONS` in `prd.py`; the contract test compares them.
+ */
+export type DocumentFormat =
+  | 'comprehensive'
+  | 'lean_onepager'
+  | 'working_backwards'
+  | 'technical_spec'
+
+export type DetailLevel = 'concise' | 'standard' | 'detailed'
+
+export type DocumentAudience = 'mixed' | 'engineering' | 'leadership'
+
+export const FORMAT_SECTIONS: Record<DocumentFormat, readonly SectionKey[]> = {
+  comprehensive: SECTION_ORDER,
+  lean_onepager: [
+    'executive_summary',
+    'problem_statement',
+    'goals',
+    'non_goals',
+    'personas',
+    'user_stories',
+    'mvp_scope',
+    'success_metrics',
+  ],
+  working_backwards: [
+    'executive_summary',
+    'value_proposition',
+    'problem_statement',
+    'personas',
+    'pain_points',
+    'user_stories',
+    'success_metrics',
+    'risks',
+    'assumptions',
+  ],
+  technical_spec: [
+    'executive_summary',
+    'problem_statement',
+    'functional_requirements',
+    'non_functional_requirements',
+    'user_flow',
+    'mvp_scope',
+    'constraints',
+    'dependencies',
+    'risks',
+    'assumptions',
+  ],
+} as const
+
+/** Sections the chosen format produces, in document order. */
+export function sectionsForFormat(format: DocumentFormat): SectionKey[] {
+  const preset = new Set(FORMAT_SECTIONS[format] ?? SECTION_ORDER)
+  return SECTION_ORDER.filter((key) => preset.has(key))
+}
+
+// ---------------------------------------------------------------------------
 // Structured content items
 // ---------------------------------------------------------------------------
 
@@ -281,6 +345,12 @@ export interface PrdInputs {
   tech_constraints: string
   competitors: string
   other_context: string
+
+  // Step 7 — Document options, chosen on the review step right before
+  // generating. Never blank, so they never count as an unanswered question.
+  document_format: DocumentFormat
+  detail_level: DetailLevel
+  document_audience: DocumentAudience
 }
 
 export type PrdInputField = keyof PrdInputs
@@ -460,6 +530,9 @@ export function emptyPrdInputs(): PrdInputs {
     tech_constraints: '',
     competitors: '',
     other_context: '',
+    document_format: 'comprehensive',
+    detail_level: 'standard',
+    document_audience: 'mixed',
   }
 }
 
